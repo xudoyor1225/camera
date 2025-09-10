@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ko'p Kamerali Tizim (Tuzatilgan)</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f0f0f0; text-align: center; margin: 0; padding: 0; }
+        .header { margin: 15px; }
+        #camera_selector { padding: 8px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; }
+        #container {
+            position: relative;
+            display: inline-block;
+            border: 2px solid #ccc;
+            min-height: 480px;
+            min-width: 640px;
+            background-color: #000;
+            color: #fff;
+            line-height: 480px;
+        }
+        #video_stream { display: block; max-width: 100%; }
+        #draw_canvas { position: absolute; top: 0; left: 0; cursor: crosshair; }
+        .controls { margin-top: 15px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; border: none; border-radius: 5px; margin: 5px; }
+        #saveBtn { background-color: #4CAF50; color: white; }
+        #finishBtn { background-color: #2196F3; color: white; }
+        #clearBtn { background-color: #f44336; color: white; }
+        #undoBtn { background-color: #ff9800; color: white; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Kamera Nazorati Tizimi</h1>
+        <select id="camera_selector">
+            <option>Kameralar yuklanmoqda...</option>
+        </select>
+    </div>
+    <div id="container">
+        <img id="video_stream" alt="Iltimos, yuqoridan kamera tanlang">
+        <canvas id="draw_canvas"></canvas>
+    </div>
+    <div class="controls">
+        <button id="undoBtn">Oxirgi Nuqtani O'chirish</button>
+        <button id="finishBtn">Joriy Hududni Yakunlash</button>
+        <button id="clearBtn">Barcha Chizilganlarni Tozalash</button>
+        <button id="saveBtn">Serverga Saqlash</button>
+    </div>
+
+    <script>
+        const video = document.getElementById('video_stream');
+        const canvas = document.getElementById('draw_canvas');
+        const cameraSelector = document.getElementById('camera_selector');
+        const ctx = canvas.getContext('2d');
+
+        const CANVAS_COLORS = ['#00FFFF', '#FF00FF', '#FFFF00', '#00FF00', '#FF0000', '#0000FF', '#FFA500'];
+        const BACKEND_COLORS = [[255, 255, 0], [255, 0, 255], [0, 255, 255], [0, 255, 0], [0, 0, 255], [255, 0, 0], [0, 165, 255]];
+
+        let allPolygons = [];
+        let currentPoints = [];
+        let nextId = 1;
+        let currentCameraId = null;
+
+        window.onload = async () => {
+            try {
+                const response = await fetch('/api/cameras');
+                const cameras = await response.json();
+                cameraSelector.innerHTML = '<option value="">-- Kamera tanlang --</option>';
+                cameras.forEach(cam => {
+                    const option = new Option(cam.name, cam.id);
+                    cameraSelector.add(option);
+                });
+            } catch (error) {
+                cameraSelector.innerHTML = '<option>Kameralarni yuklab bo`lmadi</option>';
+                console.error("Kameralar ro'yxatini yuklashda xatolik:", error);
+            }
+        };
+
+        // --- BU QISM O'ZGARDI ---
+        cameraSelector.addEventListener('change', (event) => {
+            const selectedId = event.target.value;
+            if (selectedId) {
+                currentCameraId = selectedId;
+                // Barcha holatlarni tozalaymiz
+                allPolygons = [];
+                currentPoints = [];
+                nextId = 1;
+                // Canvasni tozalab, yangi video manbasini belgilaymiz
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                video.src = `/video_feed/${currentCameraId}`;
+                video.style.display = 'block';
+                // loadExistingPolygons() ni bu yerda chaqirmaymiz!
+            } else {
+                currentCameraId = null;
+                video.src = '';
+                video.style.display = 'none';
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        });
+
+        // --- BU QISM O'ZGARDI ---
+        // video.onload endi har safar yangi rasm (video oqimi) yuklanganda ishga tushadi
+        video.onload = () => {
+            // Rasm to'liq yuklangandan keyingina canvasni sozlaymiz
+            setupCanvas();
+            // va faqat shundan keyingina saqlangan hududlarni yuklaymiz
+            loadExistingPolygons();
+        };
+
+        window.onresize = setupCanvas;
+
+        async function loadExistingPolygons() {
+            if (!currentCameraId || !video.naturalWidth) {
+                // Agar video o'lchamlari hali tayyor bo'lmasa, funksiyani to'xtatamiz
+                console.log("Video o'lchamlari kutilmoqda...");
+                return;
+            }
+            try {
+                const response = await fetch(`/api/polygons/${currentCameraId}`);
+                const existingPolygons = await response.json();
+
+                const scaleX = video.clientWidth / video.naturalWidth;
+                const scaleY = video.clientHeight / video.naturalHeight;
+
+                allPolygons = existingPolygons.map(poly => ({
+                    id: poly.id,
+                    color: CANVAS_COLORS[(poly.id - 1) % CANVAS_COLORS.length],
+                    points: poly.points.map(p => ({ x: p[0] * scaleX, y: p[1] * scaleY }))
+                }));
+
+                if (allPolygons.length > 0) {
+                    nextId = Math.max(...allPolygons.map(p => p.id)) + 1;
+                } else {
+                    nextId = 1;
+                }
+                drawAll();
+            } catch (error) {
+                console.error("Hududlarni yuklashda xatolik:", error);
+            }
+        }
+
+        function setupCanvas() {
+            if (video.clientWidth > 0) {
+                canvas.width = video.clientWidth;
+                canvas.height = video.clientHeight;
+                drawAll();
+            }
+        }
+
+        function drawAll() {
+            if (video.clientWidth > 0 && (canvas.width !== video.clientWidth || canvas.height !== video.clientHeight)) {
+                setupCanvas();
+            }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.lineWidth = 2;
+            ctx.font = '16px sans-serif';
+
+            allPolygons.forEach(poly => {
+                if(poly.points.length > 0) {
+                    ctx.strokeStyle = poly.color;
+                    ctx.fillStyle = poly.color;
+                    ctx.beginPath();
+                    ctx.moveTo(poly.points[0].x, poly.points[0].y);
+                    poly.points.forEach(p => ctx.lineTo(p.x, p.y));
+                    ctx.closePath();
+                    ctx.stroke();
+                    ctx.fillText(`ID: ${poly.id}`, poly.points[0].x, poly.points[0].y - 10);
+                }
+            });
+
+            if (currentPoints.length > 0) {
+                ctx.strokeStyle = 'yellow';
+                ctx.beginPath();
+                ctx.moveTo(currentPoints[0].x, currentPoints[0].y);
+                currentPoints.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.stroke();
+            }
+        }
+
+        canvas.addEventListener('click', (e) => {
+            if (!currentCameraId) {
+                alert("Chizishdan oldin kamera tanlang!");
+                return;
+            }
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            currentPoints.push({ x: x, y: y });
+            drawAll();
+        });
+
+        document.getElementById('undoBtn').addEventListener('click', () => {
+            if (currentPoints.length > 0) {
+                currentPoints.pop();
+                drawAll();
+            }
+        });
+
+        document.getElementById('finishBtn').addEventListener('click', () => {
+            if(currentPoints.length < 3) {
+                alert("Hudud kamida 3 ta nuqtadan iborat bo'lishi kerak!");
+                return;
+            }
+            const newPolygon = {
+                id: nextId,
+                color: CANVAS_COLORS[(nextId - 1) % CANVAS_COLORS.length],
+                points: currentPoints
+            };
+            allPolygons.push(newPolygon);
+            nextId++;
+            currentPoints = [];
+            drawAll();
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            if(confirm("Haqiqatan ham joriy kamera uchun chizilgan barcha hududlarni o'chirmoqchimisiz?")) {
+                allPolygons = [];
+                currentPoints = [];
+                nextId = 1;
+                drawAll();
+            }
+        });
+
+        document.getElementById('saveBtn').addEventListener('click', async () => {
+            if (!currentCameraId) {
+                alert("Iltimos, avval kamera tanlang!");
+                return;
+            }
+            if (currentPoints.length > 0) {
+                alert("Avval joriy hududni 'Joriy Hududni Yakunlash' tugmasi bilan yakunlang!");
+                return;
+            }
+            if (!video.naturalWidth || video.naturalWidth === 0) {
+                alert("Video o'lchamlari hali aniqlanmadi. Iltimos, bir oz kuting.");
+                return;
+            }
+
+            const scaleX = video.naturalWidth / video.clientWidth;
+            const scaleY = video.naturalHeight / video.clientHeight;
+
+            const dataToSend = allPolygons.map(poly => ({
+                id: poly.id,
+                color: BACKEND_COLORS[(poly.id - 1) % BACKEND_COLORS.length],
+                points: poly.points.map(p => [Math.round(p.x * scaleX), Math.round(p.y * scaleY)])
+            }));
+
+            try {
+                const response = await fetch(`/api/polygons/${currentCameraId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dataToSend),
+                });
+                const result = await response.json();
+                alert(result.message);
+            } catch (error) {
+                console.error('Saqlashda xatolik:', error);
+                alert("Serverga ulanishda xatolik yuz berdi.");
+            }
+        });
+    </script>
+</body>
+</html>
