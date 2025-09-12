@@ -2,15 +2,17 @@ import cv2
 import json
 import time
 import threading
+import os
 from flask import Flask, render_template, Response, request, jsonify
 from flask_cors import CORS
 
+
 # --- Konfiguratsiya ---
 CONFIG_FILE = 'config.json'
-POLYGONS_DIR = 'polygons_data'  # Hududlar fayllari uchun alohida papka
+POLYGONS_DIR = 'polygons_data'
 
 
-# Kamera oqimini o'qish uchun sinf (deyarli o'zgarmagan)
+# Kamera oqimini o'qish uchun sinf
 class Camera:
     def __init__(self, rtsp_url):
         self.video_capture = cv2.VideoCapture(rtsp_url)
@@ -22,6 +24,7 @@ class Camera:
         self.thread.start()
 
     def _reader(self):
+        """Bu funksiya alohida oqimda cheksiz ishlaydi va kameradan kadr o'qiydi."""
         while True:
             if not self.video_capture.isOpened():
                 self.video_capture.release()
@@ -39,6 +42,7 @@ class Camera:
             time.sleep(0.01)
 
     def get_jpeg_frame(self):
+        """Oxirgi saqlangan kadrni oladi va JPEG formatiga o'giradi."""
         with self.lock:
             if self.frame is None: return None
             ret, buffer = cv2.imencode('.jpg', self.frame)
@@ -63,8 +67,6 @@ except Exception as e:
     print(f"Xatolik: {CONFIG_FILE} faylini o'qib bo'lmadi yoki kameralar ishga tushmadi. Xatolik: {e}")
 
 # Hududlar uchun papka yaratish
-import os
-
 os.makedirs(POLYGONS_DIR, exist_ok=True)
 
 
@@ -83,19 +85,27 @@ def stream_generator(camera_id):
         time.sleep(0.03)
 
 
+# --- Flask uchun yo'llar (Routes) ---
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    """
+    Asosiy sahifani ko'rsatadi va URL parametrini qabul qiladi.
+    Masalan: http://.../?camera=cam2
+    """
+    initial_camera_id = request.args.get('camera', None)
+    return render_template('index.html', initial_camera=initial_camera_id)
 
 
-# Frontendga kameralar ro'yxatini berish uchun yangi yo'l
 @app.route('/api/cameras')
 def get_cameras():
+    """Frontendga kameralar ro'yxatini beradi."""
     return jsonify(camera_configs)
 
 
 @app.route('/video_feed/<string:camera_id>')
 def video_feed(camera_id):
+    """Tanlangan kamera uchun video oqimini uzatadi."""
     return Response(stream_generator(camera_id), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
