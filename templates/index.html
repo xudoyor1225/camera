@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Kamera Ekrani</title>
+    <title>Kamera Ekrani (Nom Berish Bilan)</title>
     <style>
         body { font-family: sans-serif; background-color: #f0f0f0; text-align: center; margin: 0; padding: 0; }
         .header { margin: 15px; }
@@ -31,7 +31,6 @@
     <div class="header">
         <h1 id="camera-title">Kamera tanlanmagan</h1>
     </div>
-    <!-- Boshida konteyner va tugmalar yashirin bo'ladi -->
     <div id="container" style="display: none;">
         <img id="video_stream" alt="Kamera yuklanmoqda...">
         <canvas id="draw_canvas"></canvas>
@@ -44,59 +43,41 @@
     </div>
 
     <script>
-        // Elementlarni topib olamiz
         const video = document.getElementById('video_stream');
         const canvas = document.getElementById('draw_canvas');
         const cameraTitle = document.getElementById('camera-title');
         const container = document.getElementById('container');
         const controls = document.getElementById('controls');
         const ctx = canvas.getContext('2d');
-
-        // Qolgan barcha o'zgaruvchilar va konstantalar
         const CANVAS_COLORS = ['#00FFFF', '#FF00FF', '#FFFF00', '#00FF00', '#FF0000', '#0000FF', '#FFA500'];
         const BACKEND_COLORS = [[255, 255, 0], [255, 0, 255], [0, 255, 255], [0, 255, 0], [0, 0, 255], [255, 0, 0], [0, 165, 255]];
-
         let allPolygons = [];
         let currentPoints = [];
         let nextId = 1;
         let currentCameraId = null;
 
-        // Sahifa yuklanganda asosiy mantiq ishga tushadi
         window.onload = async () => {
-            // Flaskdan kelgan kamera ID sini o'qiymiz
             const initialCameraId = "{{ initial_camera or '' }}";
+            if (!initialCameraId) { return; }
 
-            // Agar URLda kamera IDsi ko'rsatilmagan bo'lsa, hech narsa qilmaymiz
-            if (!initialCameraId) {
-                return;
-            }
-
-            // Agar ID bor bo'lsa, interfeys elementlarini ko'rinadigan qilamiz
             container.style.display = 'inline-block';
             controls.style.display = 'block';
 
             try {
-                // Kameralar ro'yxatini olamiz
                 const response = await fetch('/api/cameras');
                 const cameras = await response.json();
-
-                // Kerakli kameraning ma'lumotlarini topamiz
                 const selectedCamera = cameras.find(cam => cam.id === initialCameraId);
 
                 if (selectedCamera) {
-                    // Sarlavhani kamera nomi bilan yangilaymiz
                     cameraTitle.innerText = selectedCamera.name;
                     currentCameraId = selectedCamera.id;
-                    // Video manbasini belgilaymiz
                     video.src = `/video_feed/${currentCameraId}`;
                     video.style.display = 'block';
                 } else {
                     cameraTitle.innerText = `Xatolik: '${initialCameraId}' ID li kamera topilmadi.`;
-                    video.style.display = 'none';
                     container.style.display = 'none';
                     controls.style.display = 'none';
                 }
-
             } catch (error) {
                 cameraTitle.innerText = "Kamera serveriga ulanib bo'lmadi";
                 console.error("Kameralar ro'yxatini yuklashda xatolik:", error);
@@ -111,9 +92,7 @@
         window.onresize = setupCanvas;
 
         async function loadExistingPolygons() {
-            if (!currentCameraId || !video.naturalWidth) {
-                return;
-            }
+            if (!currentCameraId || !video.naturalWidth) return;
             try {
                 const response = await fetch(`/api/polygons/${currentCameraId}`);
                 const existingPolygons = await response.json();
@@ -122,19 +101,15 @@
 
                 allPolygons = existingPolygons.map(poly => ({
                     id: poly.id,
+                    name: poly.name || `Hudud ${poly.id}`, // <--- NOM QO'SHILDI
                     color: CANVAS_COLORS[(poly.id - 1) % CANVAS_COLORS.length],
                     points: poly.points.map(p => ({ x: p[0] * scaleX, y: p[1] * scaleY }))
                 }));
 
-                if (allPolygons.length > 0) {
-                    nextId = Math.max(...allPolygons.map(p => p.id)) + 1;
-                } else {
-                    nextId = 1;
-                }
+                if (allPolygons.length > 0) { nextId = Math.max(...allPolygons.map(p => p.id)) + 1; }
+                else { nextId = 1; }
                 drawAll();
-            } catch (error) {
-                console.error("Hududlarni yuklashda xatolik:", error);
-            }
+            } catch (error) { console.error("Hududlarni yuklashda xatolik:", error); }
         }
 
         function setupCanvas() {
@@ -146,9 +121,7 @@
         }
 
         function drawAll() {
-            if (video.clientWidth > 0 && (canvas.width !== video.clientWidth || canvas.height !== video.clientHeight)) {
-                setupCanvas();
-            }
+            if (video.clientWidth > 0 && (canvas.width !== video.clientWidth || canvas.height !== video.clientHeight)) { setupCanvas(); }
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.lineWidth = 2;
             ctx.font = '16px sans-serif';
@@ -162,7 +135,8 @@
                     poly.points.forEach(p => ctx.lineTo(p.x, p.y));
                     ctx.closePath();
                     ctx.stroke();
-                    ctx.fillText(`ID: ${poly.id}`, poly.points[0].x, poly.points[0].y - 10);
+                    const text = `ID: ${poly.id} - ${poly.name}`; // <--- NOM QO'SHILDI
+                    ctx.fillText(text, poly.points[0].x, poly.points[0].y - 10);
                 }
             });
 
@@ -176,9 +150,7 @@
         }
 
         canvas.addEventListener('click', (e) => {
-            if (!currentCameraId) {
-                return;
-            }
+            if (!currentCameraId) return;
             const rect = canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
@@ -187,10 +159,7 @@
         });
 
         document.getElementById('undoBtn').addEventListener('click', () => {
-            if (currentPoints.length > 0) {
-                currentPoints.pop();
-                drawAll();
-            }
+            if (currentPoints.length > 0) { currentPoints.pop(); drawAll(); }
         });
 
         document.getElementById('finishBtn').addEventListener('click', () => {
@@ -198,8 +167,18 @@
                 alert("Hudud kamida 3 ta nuqtadan iborat bo'lishi kerak!");
                 return;
             }
+
+            // Hudud uchun nom so'raymiz
+            const regionName = prompt("Yangi hudud uchun nom kiriting:", `Hudud ${nextId}`);
+            if (!regionName || regionName.trim() === "") {
+                alert("Nom kiritilmadi. Hudud saqlanmadi.");
+                return;
+            }
+
+            // Obyektga nomni qo'shamiz
             const newPolygon = {
                 id: nextId,
+                name: regionName.trim(), // <--- NOM QO'SHILDI
                 color: CANVAS_COLORS[(nextId - 1) % CANVAS_COLORS.length],
                 points: currentPoints
             };
@@ -211,31 +190,23 @@
 
         document.getElementById('clearBtn').addEventListener('click', () => {
             if(confirm("Haqiqatan ham joriy kamera uchun chizilgan barcha hududlarni o'chirmoqchimisiz?")) {
-                allPolygons = [];
-                currentPoints = [];
-                nextId = 1;
+                allPolygons = []; currentPoints = []; nextId = 1;
                 drawAll();
             }
         });
 
         document.getElementById('saveBtn').addEventListener('click', async () => {
-            if (!currentCameraId) {
-                return;
-            }
-            if (currentPoints.length > 0) {
-                alert("Avval joriy hududni 'Joriy Hududni Yakunlash' tugmasi bilan yakunlang!");
-                return;
-            }
-            if (!video.naturalWidth || video.naturalWidth === 0) {
-                alert("Video o'lchamlari hali aniqlanmadi. Iltimos, bir oz kuting.");
-                return;
-            }
+            if (!currentCameraId) return;
+            if (currentPoints.length > 0) { alert("Avval joriy hududni yakunlang!"); return; }
+            if (!video.naturalWidth || video.naturalWidth === 0) { alert("Video o'lchamlari hali aniqlanmadi."); return; }
 
             const scaleX = video.naturalWidth / video.clientWidth;
             const scaleY = video.naturalHeight / video.clientHeight;
 
+            // Saqlashga yuborilayotgan ma'lumotga nomni qo'shamiz
             const dataToSend = allPolygons.map(poly => ({
                 id: poly.id,
+                name: poly.name, // <--- NOM QO'SHILDI
                 color: BACKEND_COLORS[(poly.id - 1) % BACKEND_COLORS.length],
                 points: poly.points.map(p => [Math.round(p.x * scaleX), Math.round(p.y * scaleY)])
             }));
