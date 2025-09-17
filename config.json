@@ -2,78 +2,93 @@
     {
         "id": "11",
         "name": "cam1",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/102/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/102/",
+        "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/102/picture"
     },
 
   {
         "id": "12",
         "name": "cam2",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/202/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/202/",
+    "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/202/picture"
     },
     {
         "id": "13",
         "name": "cam3",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/302/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/302/",
+      "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/302/picture"
     },
       {
         "id": "14",
         "name": "cam4",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/402/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/402/",
+        "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/402/picture"
     },
         {
         "id": "15",
         "name": "cam5",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/502/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/502/",
+          "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/502/picture"
     },
         {
         "id": "16",
         "name": "cam6",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/602/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/602/",
+          "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/602/picture"
     },
         {
         "id": "17",
         "name": "cam7",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/702/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/702/",
+          "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/702/picture"
     },
         {
         "id": "18",
         "name": "cam8",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/802/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/802/",
+          "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/802/picture"
     },
         {
         "id": "10527",
         "name": "cam9",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/902/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/902/",
+          "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/902/picture"
     },
         {
         "id": "10528",
         "name": "cam10",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1002/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1002/",
+          "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/1002/picture"
     },
         {
         "id": "12422",
         "name": "cam11",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1102/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1102/",
+          "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/1102/picture"
     },
           {
         "id": "12423",
         "name": "cam12",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1202/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1202/",
+        "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/1202/picture"
     },
           {
         "id": "12439",
         "name": "cam13",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1302/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1302/",
+            "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/1302/picture"
     },
           {
         "id": "12452",
         "name": "cam14",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1402/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1402/",
+            "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/1402/picture"
     },
           {
         "id": "12454",
         "name": "cam15",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1502/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1502/",
+        "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/1502/picture"
     },
 
 
@@ -83,57 +98,68 @@
           {
         "id": "12463",
         "name": "cam17",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1702/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1702/",
+            "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/1702/picture"
     },
           {
         "id": "12465",
         "name": "cam18",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1802/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1802/",
+            "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/1802/picture"
     },
             {
         "id": "12466",
         "name": "cam19",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1902/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/1902/",
+        "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/1902/picture"
     },
             {
         "id": "12468",
         "name": "cam20",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2002/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2002/",
+        "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/2002/picture"
     },
             {
         "id": "12470",
         "name": "cam21",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2102/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2102/",
+        "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/2102/picture"
     },
               {
         "id": "12471",
         "name": "cam22",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2202/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2202/",
+        "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/2202/picture"
     },
               {
         "id": "12472",
         "name": "cam23",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2302/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2302/",
+        "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/102/picture"
     },
               {
         "id": "12473",
         "name": "cam24",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2402/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2402/",
+        "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/2402/picture"
     },
               {
         "id": "12475",
         "name": "cam25",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2502/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2502/",
+        "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/2502/picture"
     },
               {
         "id": "12476",
         "name": "cam26",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2602/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2602/",
+        "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/2602/picture"
     },
               {
         "id": "12477",
         "name": "cam27",
-        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2702/"
+        "rtsp_url": "rtsp://admin:Q135246q@213.230.107.149/Streaming/Channels/2702/",
+        "snapshot_url": "http://admin:Q135246q@213.230.107.149/ISAPI/Streaming/channels/2702/picture"
     }
 
 ]
