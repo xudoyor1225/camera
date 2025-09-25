@@ -32,7 +32,6 @@
         <h1 id="camera-title">Kamera tanlanmagan</h1>
     </div>
     <div id="container" style="display: none;">
-        <!-- Bu doimiy video oqimini ko'rsatadi -->
         <img id="video_stream" alt="Kamera yuklanmoqda...">
         <canvas id="draw_canvas"></canvas>
     </div>
@@ -49,17 +48,15 @@
         const cameraTitle = document.getElementById('camera-title');
         const container = document.getElementById('container');
         const controls = document.getElementById('controls');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('d');
         const CANVAS_COLORS = ['#00FFFF', '#FF00FF', '#FFFF00', '#00FF00', '#FF0000', '#0000FF', '#FFA500'];
         const BACKEND_COLORS = [[255, 255, 0], [255, 0, 255], [0, 255, 255], [0, 255, 0], [0, 0, 255], [255, 0, 0], [0, 165, 255]];
         let allPolygons = [];
         let currentPoints = [];
         let nextId = 1;
         let currentCameraId = null;
-
-        // --- XATOLIK BERAYOTGAN QATOR OLIB TASHLANDI ---
-        // const IMAGE_REFRESH_INTERVAL_MS = ...; (Bu endi kerak emas)
-        // ---------------------------------------------
+        // Asl kadr o'lchamlarini saqlash uchun global o'zgaruvchi
+        let sourceFrameSize = null;
 
         window.onload = async () => {
             const initialCameraId = "{{ initial_camera or '' }}";
@@ -76,7 +73,6 @@
                 if (selectedCamera) {
                     cameraTitle.innerText = selectedCamera.name;
                     currentCameraId = selectedCamera.id;
-                    // Video manbasini belgilaymiz (bu doimiy oqim)
                     video.src = `/video_feed/${currentCameraId}`;
                     video.style.display = 'block';
                 } else {
@@ -99,29 +95,24 @@
 
         async function loadExistingPolygons() {
             if (!currentCameraId) return;
-
-            // Kadr o'lchamlari tayyor bo'lishini kutamiz
             if (!video.naturalWidth || video.naturalWidth === 0) {
-                // Agar o'lchamlar hali tayyor bo'lmasa, birozdan keyin qayta urinib ko'ramiz
                 setTimeout(loadExistingPolygons, 100);
                 return;
             }
 
             try {
-                // Endi Flask'dan kelayotgan javobni to'g'ri tahlil qilamiz
                 const response = await fetch(`/api/polygons/${currentCameraId}`);
                 const responseData = await response.json();
 
                 const existingPolygons = responseData.polygons || [];
-                const sourceSize = responseData.source_frame_size;
+                // Asl kadr o'lchamini global o'zgaruvchiga saqlab qo'yamiz
+                sourceFrameSize = responseData.source_frame_size;
 
-                let scaleX = 1;
-                let scaleY = 1;
+                let scaleX = 1; let scaleY = 1;
 
-                // Masshtablashni faqat kerakli ma'lumotlar mavjud bo'lganda bajaramiz
-                if (sourceSize && sourceSize.width > 0) {
-                    scaleX = video.clientWidth / sourceSize.width;
-                    scaleY = video.clientHeight / sourceSize.height;
+                if (sourceFrameSize && sourceFrameSize.width > 0) {
+                    scaleX = video.clientWidth / sourceFrameSize.width;
+                    scaleY = video.clientHeight / sourceFrameSize.height;
                 }
 
                 allPolygons = existingPolygons.map(poly => ({
@@ -209,29 +200,30 @@
             drawAll();
         });
 
+        // --- BU TUGMA TUZATILDI ---
         document.getElementById('clearBtn').addEventListener('click', () => {
-            if(confirm("Haqiqatan ham joriy kamera uchun chizilgan barcha hududlarni o'chirmoqchimisiz?")) {
-                allPolygons = []; currentPoints = []; nextId = 1;
+            if(confirm("Haqiqatan ham joriy kamera uchun chizilgan barcha hududlarni o'chirmoqchimisiz? O'zgarishlarni saqlash uchun 'Serverga Saqlash' tugmasini bosing.")) {
+                // Shunchaki massivlarni tozalaymiz va ekranni yangilaymiz
+                allPolygons = [];
+                currentPoints = [];
+                nextId = 1;
                 drawAll();
             }
         });
 
+        // --- BU TUGMA TUZATILDI ---
         document.getElementById('saveBtn').addEventListener('click', async () => {
             if (!currentCameraId) return;
             if (currentPoints.length > 0) { alert("Avval joriy hududni yakunlang!"); return; }
             if (!video.naturalWidth || video.naturalWidth === 0) { alert("Video o'lchamlari hali aniqlanmadi."); return; }
 
-            // Flask'dan olingan asl o'lchamlarni ishlatishga harakat qilamiz
-            const response = await fetch(`/api/polygons/${currentCameraId}`);
-            const responseData = await response.json();
-            const sourceSize = responseData.source_frame_size;
-
             let scaleX = video.naturalWidth / video.clientWidth;
             let scaleY = video.naturalHeight / video.clientHeight;
 
-            if (sourceSize && sourceSize.width > 0) {
-                scaleX = sourceSize.width / video.clientWidth;
-                scaleY = sourceSize.height / video.clientHeight;
+            // Agar global o'zgaruvchida asl o'lchamlar bo'lsa, o'shalarni ishlatamiz
+            if (sourceFrameSize && sourceFrameSize.width > 0) {
+                scaleX = sourceFrameSize.width / video.clientWidth;
+                scaleY = sourceFrameSize.height / video.clientHeight;
             }
 
             const dataToSend = allPolygons.map(poly => ({
