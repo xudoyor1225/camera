@@ -48,15 +48,14 @@
         const cameraTitle = document.getElementById('camera-title');
         const container = document.getElementById('container');
         const controls = document.getElementById('controls');
-        const ctx = canvas.getContext('d');
+        const ctx = canvas.getContext('2d');
         const CANVAS_COLORS = ['#00FFFF', '#FF00FF', '#FFFF00', '#00FF00', '#FF0000', '#0000FF', '#FFA500'];
         const BACKEND_COLORS = [[255, 255, 0], [255, 0, 255], [0, 255, 255], [0, 255, 0], [0, 0, 255], [255, 0, 0], [0, 165, 255]];
         let allPolygons = [];
         let currentPoints = [];
         let nextId = 1;
         let currentCameraId = null;
-        // Asl kadr o'lchamlarini saqlash uchun global o'zgaruvchi
-        let sourceFrameSize = null;
+        let sourceFrameSize = null; // Asl kadr o'lchamlarini saqlash uchun
 
         window.onload = async () => {
             const initialCameraId = "{{ initial_camera or '' }}";
@@ -95,8 +94,9 @@
 
         async function loadExistingPolygons() {
             if (!currentCameraId) return;
+            // Kadr o'lchamlari tayyor bo'lishini kutamiz
             if (!video.naturalWidth || video.naturalWidth === 0) {
-                setTimeout(loadExistingPolygons, 100);
+                setTimeout(loadExistingPolygons, 200);
                 return;
             }
 
@@ -105,7 +105,6 @@
                 const responseData = await response.json();
 
                 const existingPolygons = responseData.polygons || [];
-                // Asl kadr o'lchamini global o'zgaruvchiga saqlab qo'yamiz
                 sourceFrameSize = responseData.source_frame_size;
 
                 let scaleX = 1; let scaleY = 1;
@@ -200,10 +199,8 @@
             drawAll();
         });
 
-        // --- BU TUGMA TUZATILDI ---
         document.getElementById('clearBtn').addEventListener('click', () => {
             if(confirm("Haqiqatan ham joriy kamera uchun chizilgan barcha hududlarni o'chirmoqchimisiz? O'zgarishlarni saqlash uchun 'Serverga Saqlash' tugmasini bosing.")) {
-                // Shunchaki massivlarni tozalaymiz va ekranni yangilaymiz
                 allPolygons = [];
                 currentPoints = [];
                 nextId = 1;
@@ -211,20 +208,21 @@
             }
         });
 
-        // --- BU TUGMA TUZATILDI ---
         document.getElementById('saveBtn').addEventListener('click', async () => {
             if (!currentCameraId) return;
             if (currentPoints.length > 0) { alert("Avval joriy hududni yakunlang!"); return; }
-            if (!video.naturalWidth || video.naturalWidth === 0) { alert("Video o'lchamlari hali aniqlanmadi."); return; }
+            if (!video.clientWidth || video.clientWidth === 0) { alert("Video hali yuklanmagan."); return; }
 
-            let scaleX = video.naturalWidth / video.clientWidth;
-            let scaleY = video.naturalHeight / video.clientHeight;
-
-            // Agar global o'zgaruvchida asl o'lchamlar bo'lsa, o'shalarni ishlatamiz
-            if (sourceFrameSize && sourceFrameSize.width > 0) {
-                scaleX = sourceFrameSize.width / video.clientWidth;
-                scaleY = sourceFrameSize.height / video.clientHeight;
+            // Asl o'lchamlar mavjudligini tekshiramiz
+            if (!sourceFrameSize || !sourceFrameSize.width) {
+                alert("Asl kadr o'lchamlari olinmadi. Iltimos, sahifani yangilab, qayta urunib ko'ring.");
+                // Qayta yuklashga harakat qilamiz
+                await loadExistingPolygons();
+                if (!sourceFrameSize || !sourceFrameSize.width) return;
             }
+
+            const scaleX = sourceFrameSize.width / video.clientWidth;
+            const scaleY = sourceFrameSize.height / video.clientHeight;
 
             const dataToSend = allPolygons.map(poly => ({
                 id: poly.id,
