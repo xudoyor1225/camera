@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Kamera Ekrani (Nom Berish Bilan)</title>
+    <title>Kamera Ekrani (Yakuniy Versiya)</title>
     <style>
         body { font-family: sans-serif; background-color: #f0f0f0; text-align: center; margin: 0; padding: 0; }
         .header { margin: 15px; }
@@ -32,6 +32,7 @@
         <h1 id="camera-title">Kamera tanlanmagan</h1>
     </div>
     <div id="container" style="display: none;">
+        <!-- Bu doimiy video oqimini ko'rsatadi -->
         <img id="video_stream" alt="Kamera yuklanmoqda...">
         <canvas id="draw_canvas"></canvas>
     </div>
@@ -56,6 +57,10 @@
         let nextId = 1;
         let currentCameraId = null;
 
+        // --- XATOLIK BERAYOTGAN QATOR OLIB TASHLANDI ---
+        // const IMAGE_REFRESH_INTERVAL_MS = ...; (Bu endi kerak emas)
+        // ---------------------------------------------
+
         window.onload = async () => {
             const initialCameraId = "{{ initial_camera or '' }}";
             if (!initialCameraId) { return; }
@@ -71,6 +76,7 @@
                 if (selectedCamera) {
                     cameraTitle.innerText = selectedCamera.name;
                     currentCameraId = selectedCamera.id;
+                    // Video manbasini belgilaymiz (bu doimiy oqim)
                     video.src = `/video_feed/${currentCameraId}`;
                     video.style.display = 'block';
                 } else {
@@ -92,16 +98,35 @@
         window.onresize = setupCanvas;
 
         async function loadExistingPolygons() {
-            if (!currentCameraId || !video.naturalWidth) return;
+            if (!currentCameraId) return;
+
+            // Kadr o'lchamlari tayyor bo'lishini kutamiz
+            if (!video.naturalWidth || video.naturalWidth === 0) {
+                // Agar o'lchamlar hali tayyor bo'lmasa, birozdan keyin qayta urinib ko'ramiz
+                setTimeout(loadExistingPolygons, 100);
+                return;
+            }
+
             try {
+                // Endi Flask'dan kelayotgan javobni to'g'ri tahlil qilamiz
                 const response = await fetch(`/api/polygons/${currentCameraId}`);
-                const existingPolygons = await response.json();
-                const scaleX = video.clientWidth / video.naturalWidth;
-                const scaleY = video.clientHeight / video.naturalHeight;
+                const responseData = await response.json();
+
+                const existingPolygons = responseData.polygons || [];
+                const sourceSize = responseData.source_frame_size;
+
+                let scaleX = 1;
+                let scaleY = 1;
+
+                // Masshtablashni faqat kerakli ma'lumotlar mavjud bo'lganda bajaramiz
+                if (sourceSize && sourceSize.width > 0) {
+                    scaleX = video.clientWidth / sourceSize.width;
+                    scaleY = video.clientHeight / sourceSize.height;
+                }
 
                 allPolygons = existingPolygons.map(poly => ({
                     id: poly.id,
-                    name: poly.name || `Hudud ${poly.id}`, // <--- NOM QO'SHILDI
+                    name: poly.name || `Hudud ${poly.id}`,
                     color: CANVAS_COLORS[(poly.id - 1) % CANVAS_COLORS.length],
                     points: poly.points.map(p => ({ x: p[0] * scaleX, y: p[1] * scaleY }))
                 }));
@@ -135,7 +160,7 @@
                     poly.points.forEach(p => ctx.lineTo(p.x, p.y));
                     ctx.closePath();
                     ctx.stroke();
-                    const text = `ID: ${poly.id} - ${poly.name}`; // <--- NOM QO'SHILDI
+                    const text = `ID: ${poly.id} - ${poly.name}`;
                     ctx.fillText(text, poly.points[0].x, poly.points[0].y - 10);
                 }
             });
@@ -167,18 +192,14 @@
                 alert("Hudud kamida 3 ta nuqtadan iborat bo'lishi kerak!");
                 return;
             }
-
-            // Hudud uchun nom so'raymiz
             const regionName = prompt("Yangi hudud uchun nom kiriting:", `Hudud ${nextId}`);
             if (!regionName || regionName.trim() === "") {
                 alert("Nom kiritilmadi. Hudud saqlanmadi.");
                 return;
             }
-
-            // Obyektga nomni qo'shamiz
             const newPolygon = {
                 id: nextId,
-                name: regionName.trim(), // <--- NOM QO'SHILDI
+                name: regionName.trim(),
                 color: CANVAS_COLORS[(nextId - 1) % CANVAS_COLORS.length],
                 points: currentPoints
             };
@@ -200,24 +221,33 @@
             if (currentPoints.length > 0) { alert("Avval joriy hududni yakunlang!"); return; }
             if (!video.naturalWidth || video.naturalWidth === 0) { alert("Video o'lchamlari hali aniqlanmadi."); return; }
 
-            const scaleX = video.naturalWidth / video.clientWidth;
-            const scaleY = video.naturalHeight / video.clientHeight;
+            // Flask'dan olingan asl o'lchamlarni ishlatishga harakat qilamiz
+            const response = await fetch(`/api/polygons/${currentCameraId}`);
+            const responseData = await response.json();
+            const sourceSize = responseData.source_frame_size;
 
-            // Saqlashga yuborilayotgan ma'lumotga nomni qo'shamiz
+            let scaleX = video.naturalWidth / video.clientWidth;
+            let scaleY = video.naturalHeight / video.clientHeight;
+
+            if (sourceSize && sourceSize.width > 0) {
+                scaleX = sourceSize.width / video.clientWidth;
+                scaleY = sourceSize.height / video.clientHeight;
+            }
+
             const dataToSend = allPolygons.map(poly => ({
                 id: poly.id,
-                name: poly.name, // <--- NOM QO'SHILDI
+                name: poly.name,
                 color: BACKEND_COLORS[(poly.id - 1) % BACKEND_COLORS.length],
                 points: poly.points.map(p => [Math.round(p.x * scaleX), Math.round(p.y * scaleY)])
             }));
 
             try {
-                const response = await fetch(`/api/polygons/${currentCameraId}`, {
+                const postResponse = await fetch(`/api/polygons/${currentCameraId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(dataToSend)
                 });
-                const result = await response.json();
+                const result = await postResponse.json();
                 alert(result.message);
             } catch (error) {
                 console.error('Saqlashda xatolik:', error);
