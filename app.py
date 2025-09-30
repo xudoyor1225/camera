@@ -1,8 +1,11 @@
 import cv2
 import json
 import os
+import sys
 import time
 import threading
+import gc
+from contextlib import contextmanager
 from flask import Flask, render_template, Response, request, jsonify
 from flask_cors import CORS
 
@@ -10,7 +13,6 @@ from flask_cors import CORS
 CONFIG_FILE = 'config.json'
 POLYGONS_DIR = 'polygons_data'
 # Har necha soniyada yangi rasm olinishi (1 soat = 3600 soniya)
-# Tekshirish uchun 60 soniya (1 daqiqa) qo'yishingiz mumkin
 IMAGE_REFRESH_INTERVAL_SECONDS = 3600
 # RTSP oqimidan tiniq kadr olish uchun o'tkazib yuboriladigan kadrlar soni
 FRAMES_TO_SKIP = 10
@@ -21,59 +23,100 @@ app = Flask(__name__)
 CORS(app)
 
 
-# --- CAMERA SINFI TO'LIQ O'ZGARTIRILDI ---
+# --- FFMPEG XATOLIKLARINI YASHIRISH UCHUN FUNKSIYA ---
+@contextmanager
+def suppress_stderr():
+    """
+    Bu kontekst menejeri ichidagi har qanday operatsiya vaqtida
+    chiqarilgan barcha xatoliklarni (stderr) vaqtinchalik o'chirib turadi.
+    """
+    # Platformaga mos bo'sh fayl manzilini tanlaymiz
+    null_fd_path = os.devnull
+    # Fayl deskriptorlarini saqlab qolamiz
+    original_stderr_fd = None
+    try:
+        # Asl stderr oqimini eslab qolamiz
+        original_stderr_fd = os.dup(sys.stderr.fileno())
+        # Bo'sh faylni ochamiz
+        with open(null_fd_path, 'w') as null_file:
+            # stderr ni bo'sh faylga yo'naltiramiz
+            os.dup2(null_file.fileno(), sys.stderr.fileno())
+
+        # Asosiy kodni ishga tushirishga ruxsat beramiz
+        yield
+    finally:
+        # Ish tugagach, stderr ni har doim asl holatiga qaytaramiz
+        if original_stderr_fd is not None:
+            os.dup2(original_stderr_fd, sys.stderr.fileno())
+            os.close(original_stderr_fd)
+
+
+# -----------------------------------------------------------
+
+# --- CAMERA SINFI ---
 class Camera:
     def __init__(self, rtsp_url):
         self.rtsp_url = rtsp_url
-        self.frame = None  # Oxirgi olingan kadrni saqlash uchun
+        self.frame = None
         self.frame_width = 0
         self.frame_height = 0
         self.lock = threading.Lock()
-        self.is_updating = False  # Bir vaqtda bir nechta yangilanish bo'lmasligi uchun
+        self.is_running = True
         self.thread = threading.Thread(target=self._updater)
         self.thread.daemon = True
-        # Dastur ishga tushishi bilan bir marta rasm olamiz
         self._update_frame()
         self.thread.start()
 
     def _get_latest_frame_from_rtsp(self, skip_frames=5):
-        """RTSP oqimidan bitta tiniq kadr oladi."""
-        cap = cv2.VideoCapture(self.rtsp_url)
-        if not cap.isOpened():
-            print(f"Xatolik: Kameraga ulanib bo'lmadi - {self.rtsp_url}")
+        """RTSP oqimidan bitta tiniq kadr oladi, ffmpeg xatoliklarini yashirgan holda."""
+        cap = None
+        frame = None
+        ret = False
+        try:
+            # Xatoliklarni yashiradigan blok ichida kamerani ochamiz
+            with suppress_stderr():
+                cap = cv2.VideoCapture(self.rtsp_url)
+
+            if not cap.isOpened():
+                print(f"Xatolik: Kameraga ulanib bo'lmadi - {self.rtsp_url}")
+                return None
+
+            # Buferni tozalash
+            for _ in range(skip_frames):
+                with suppress_stderr():
+                    cap.grab()
+
+            # Asosiy kadrni o'qish
+            with suppress_stderr():
+                ret, frame = cap.read()
+
+            return frame if ret else None
+        except Exception as e:
+            print(f"Kadr olishda kutilmagan xatolik: {e}")
             return None
-        # Boshlang'ich kadrlar buferini tozalash
-        for _ in range(skip_frames):
-            cap.grab()
-        ret, frame = cap.read()
-        cap.release()
-        return frame if ret else None
+        finally:
+            if cap is not None:
+                cap.release()
+            gc.collect()
 
     def _update_frame(self):
         """Kameradan yangi rasm olib, uni saqlaydi."""
-        if self.is_updating:
-            return  # Agar hozirda yangilanayotgan bo'lsa, yangi so'rovni bekor qilamiz
-
-        self.is_updating = True
         print(f"Kameradan yangi rasm olinmoqda: {self.rtsp_url}")
         frame = self._get_latest_frame_from_rtsp(skip_frames=FRAMES_TO_SKIP)
         if frame is not None:
             with self.lock:
                 self.frame = frame
-                # O'lchamlarni bir marta saqlab qo'yamiz
                 if self.frame_width == 0:
                     self.frame_height, self.frame_width, _ = frame.shape
                     print(f"O'lcham aniqlandi: {self.frame_width}x{self.frame_height}")
         else:
             print(f"Kameradan rasm olib bo'lmadi: {self.rtsp_url}")
-        self.is_updating = False
 
     def _updater(self):
         """Har belgilangan vaqtda _update_frame funksiyasini chaqirib turadi."""
-        time.sleep(IMAGE_REFRESH_INTERVAL_SECONDS)  # Birinchi kutish
-        while True:
-            self._update_frame()
+        while self.is_running:
             time.sleep(IMAGE_REFRESH_INTERVAL_SECONDS)
+            self._update_frame()
 
     def get_jpeg_frame(self):
         """Saqlangan kadrni JPEG formatiga o'giradi."""
@@ -83,6 +126,11 @@ class Camera:
             return buffer.tobytes() if ret else None
 
     def get_frame_dimensions(self):
+        """Kadr o'lchamlarini qaytaradi."""
+        for _ in range(50):  # 5 soniya kutish
+            if self.frame_width > 0:
+                break
+            time.sleep(0.1)
         return self.frame_width, self.frame_height
 
 
@@ -115,14 +163,13 @@ def get_cameras():
 
 @app.route('/video_feed/<string:camera_id>')
 def video_feed(camera_id):
-    """Endi bu manzil video oqimi emas, balki bitta JPEG rasm qaytaradi."""
+    """Bitta JPEG rasm qaytaradi."""
     camera = cameras.get(camera_id)
     if not camera:
         return "Kamera topilmadi", 404
 
     frame_bytes = camera.get_jpeg_frame()
     if frame_bytes is None:
-        # Rasm o'rniga oddiy bo'sh rasm qaytarish mumkin
         return "Rasm mavjud emas", 404
 
     return Response(frame_bytes, mimetype='image/jpeg')
@@ -138,8 +185,12 @@ def handle_polygons(camera_id):
                 with open(polygon_file, 'r', encoding='utf-8') as f:
                     content = f.read()
                     if content: polygons_data = json.loads(content)
+
             cam = cameras.get(camera_id)
-            width, height = cam.get_frame_dimensions() if cam else (0, 0)
+            width, height = (0, 0)
+            if cam:
+                width, height = cam.get_frame_dimensions()
+
             return jsonify({
                 "polygons": polygons_data,
                 "source_frame_size": {"width": width, "height": height}
